@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>진단평가/단원평가 자동 채점기</title>
+    <style>
+      body {
+        font-family: "Pretendard", sans-serif;
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f8f9fa;
+      }
+      .card {
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+      h1 {
+        color: #2c3e50;
+        text-align: center;
+        margin-bottom: 5px;
+      }
+      h2 {
+        color: #7f8c8d;
+        text-align: center;
+        font-size: 16px;
+        margin-top: 0;
+        margin-bottom: 20px;
+        font-weight: normal;
+      }
+      .input-group {
+        margin-bottom: 20px;
+      }
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 8px;
+        color: #495057;
+      }
+      input[type="number"],
+      input[type="text"] {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid #ced4da;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      input[type="file"] {
+        display: block;
+        margin-top: 5px;
+        width: 100%;
+        padding: 10px;
+        background: #e9ecef;
+        border-radius: 5px;
+        box-sizing: border-box;
+        cursor: pointer;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 15px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 18px;
+        font-weight: bold;
+        width: 100%;
+        margin-top: 10px;
+        transition: background-color 0.3s;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      #status {
+        text-align: center;
+        margin-top: 15px;
+        font-weight: bold;
+        color: #e67e22;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #fdf2e9;
+      }
+
+      .table-container {
+        overflow-x: auto;
+        margin-top: 20px;
+        border-radius: 5px;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        white-space: nowrap;
+      }
+      th,
+      td {
+        border: 1px solid #ddd;
+        padding: 10px 8px;
+        text-align: center;
+        font-size: 15px;
+      }
+      th {
+        background-color: #f8f9fa;
+        color: #495057;
+        position: sticky;
+        top: 0;
+      }
+    </style>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script
+      async
+      src="https://docs.opencv.org/4.8.0/opencv.js"
+      onload="onOpenCvReady()"
+    ></script>
+  </head>
+  <body>
+    <div class="card">
+      <h1>📝 진단평가/단원평가 자동 채점기</h1>
+      <h2>
+        by. 기록이 성장이 되는 공간, 첵스쿨
+        <a href="https://checks-cho-ok.web.app/" target="_blank"
+          >https://checks-cho-ok.web.app/</a
+        >
+      </h2>
+
+      <div id="status">
+        ⏳ 시스템을 불러오는 중입니다. 잠시만 기다려주세요...
+      </div>
+      <br />
+      <div class="download-box">
+        <label style="color: #1f1f1f; margin-bottom: 10px"
+          >0. 전용 답지(OMR카드) 양식파일</label
+        >
+        <p
+          style="
+            font-size: 14px;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 10px;
+          "
+        >
+          * 학생들에게 나누어 줄 전용 답안지(최대 30문항)를 다운로드하여
+          인쇄하세요.
+        </p>
+        <p
+          style="
+            font-size: 14px;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 10px;
+          "
+        >
+          * 답안지 양식을 그대로 다운받고, 문항수에 해당하는 만큼만 답지에
+          표시하여 사용하시면 됩니다. (예: 25문항이면 1~25번만 표시)
+        </p>
+        <p
+          style="
+            font-size: 14px;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 10px;
+          "
+        >
+          * 한글파일을 다운받아 편집하실 때는 제목, 학년, 반만 수정해주세요!!
+          (문항답안지 위치나 틀을 수정하시면 채점이 제대로 되지 않습니다!!)
+        </p>
+        <a
+          href="omr_template.pdf"
+          download="OMR답안지_양식.pdf"
+          class="download-btn"
+          >📥 답안지 양식 다운로드 (.pdf)</a
+        >
+        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+        <a
+          href="omr_template.hwpx"
+          download="OMR답안지_양식.hwpx"
+          class="download-btn"
+          >📥 답안지 양식 다운로드 (.hwpx)</a
+        >
+      </div>
+      <br />
+      <hr />
+      <br />
+
+      <div class="input-group">
+        <label for="questionCount">1. 총 문항 수 (최대 30문항)</label>
+        <input
+          type="number"
+          id="questionCount"
+          placeholder="예: 25"
+          value="25"
+          max="30"
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="answerKey">2. 정답 입력 (띄어쓰기 없이 연속된 숫자)</label>
+        <input
+          type="text"
+          id="answerKey"
+          placeholder="예: 3213412341424413214212333"
+        />
+      </div>
+
+      <div class="input-group">
+        <label for="pdfInput">3. 학생 답안지 PDF 업로드</label>
+        <input type="file" id="pdfInput" accept="application/pdf" disabled />
+      </div>
+      <div class="input-group">
+        <small style="color: #ef1915; font-weight: bold"
+          >* 학생 답안지는 앞번호(1번)가 위로 오도록 모아서, pdf파일 하나로 스캔
+          후 업로드 해주세요!
+        </small>
+      </div>
+
+      <button id="processBtn" disabled>채점 시작하기</button>
+    </div>
+
+    <div class="card" id="result-display" style="display: none">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        "
+      >
+        <h3 style="margin: 0">📊 반 전체 채점 결과</h3>
+        <button
+          id="downloadBtn"
+          style="
+            width: auto;
+            padding: 8px 15px;
+            font-size: 14px;
+            margin: 0;
+            background-color: #3498db;
+          "
+        >
+          색상 유지 엑셀 다운로드
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table id="resultTable">
+          <thead></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <canvas id="hiddenCanvas" style="display: none"></canvas>
+
+    <script>
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+      let isReady = false;
+
+      function onOpenCvReady() {
+        const statusEl = document.getElementById("status");
+        statusEl.innerText = "✅ 채점 엔진 준비 완료!";
+        statusEl.style.backgroundColor = "#e8f8f5";
+        statusEl.style.color = "#27ae60";
+        document.getElementById("pdfInput").disabled = false;
+        document.getElementById("processBtn").disabled = false;
+        isReady = true;
+      }
+
+      document
+        .getElementById("processBtn")
+        .addEventListener("click", async () => {
+          if (!isReady) return alert("아직 시스템이 준비되지 않았습니다.");
+
+          const fileInput = document.getElementById("pdfInput");
+          const answerString = document
+            .getElementById("answerKey")
+            .value.trim();
+          const qCount = parseInt(
+            document.getElementById("questionCount").value,
+          );
+
+          if (fileInput.files.length === 0)
+            return alert("스캔한 PDF 파일을 업로드해주세요.");
+          if (!answerString) return alert("정답을 입력해주세요.");
+          if (qCount > 30)
+            return alert("현재 양식은 최대 30문항까지만 지원합니다.");
+          if (answerString.length !== qCount)
+            return alert(
+              `문항 수(${qCount}개)와 정답의 개수(${answerString.length}개)가 다릅니다.`,
+            );
+
+          const answerArray = answerString.split("").map(Number);
+
+          const statusEl = document.getElementById("status");
+          statusEl.innerText = "⏳ 답안지를 정밀 분석하며 채점하고 있습니다...";
+          statusEl.style.backgroundColor = "#fef9e7";
+          statusEl.style.color = "#f39c12";
+
+          document.getElementById("result-display").style.display = "block";
+
+          generateTableHeader(qCount);
+          document.querySelector("#resultTable tbody").innerHTML = "";
+
+          const file = fileInput.files[0];
+          const fileReader = new FileReader();
+
+          fileReader.onload = async function () {
+            const typedarray = new Uint8Array(this.result);
+            const pdf = await pdfjsLib.getDocument(typedarray).promise;
+            const totalPages = pdf.numPages;
+
+            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
+              const page = await pdf.getPage(pageNum);
+              const viewport = page.getViewport({ scale: 2.0 });
+
+              const canvas = document.getElementById("hiddenCanvas");
+              const ctx = canvas.getContext("2d");
+              canvas.height = viewport.height;
+              canvas.width = viewport.width;
+
+              const renderContext = { canvasContext: ctx, viewport: viewport };
+              await page.render(renderContext).promise;
+
+              const result = gradeFixedFormatOMR(canvas, answerArray, qCount);
+              addResultRow(
+                pageNum,
+                result.correctCount,
+                qCount,
+                result.studentAnswersArray,
+                answerArray,
+              );
+            }
+
+            statusEl.innerText = "✅ 반 전체 채점이 성공적으로 완료되었습니다!";
+            statusEl.style.backgroundColor = "#e8f8f5";
+            statusEl.style.color = "#27ae60";
+          };
+          fileReader.readAsArrayBuffer(file);
+        });
+
+      function generateTableHeader(qCount) {
+        const thead = document.querySelector("#resultTable thead");
+        let headerHTML = "<tr>";
+        headerHTML += '<th style="background-color:#f8f9fa;">학생(페이지)</th>';
+        headerHTML +=
+          '<th style="background-color:#f8f9fa;">결과 (맞은개수/문항수)</th>';
+        for (let i = 1; i <= qCount; i++) {
+          headerHTML +=
+            '<th style="background-color:#f8f9fa;">' + i + "번</th>";
+        }
+        headerHTML += "</tr>";
+        thead.innerHTML = headerHTML;
+      }
+
+      function gradeFixedFormatOMR(canvas, answerArray, qCount) {
+        let src = cv.imread(canvas);
+        let gray = new cv.Mat();
+        let thresh = new cv.Mat();
+        let contours = new cv.MatVector();
+        let hierarchy = new cv.Mat();
+
+        let result = { correctCount: 0, studentAnswersArray: [] };
+
+        try {
+          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
+          cv.adaptiveThreshold(
+            gray,
+            thresh,
+            255,
+            cv.ADAPTIVE_THRESH_GAUSSIAN_C,
+            cv.THRESH_BINARY_INV,
+            15,
+            5,
+          );
+          cv.findContours(
+            thresh,
+            contours,
+            hierarchy,
+            cv.RETR_EXTERNAL,
+            cv.CHAIN_APPROX_SIMPLE,
+          );
+
+          let maxArea = 0;
+          let maxIndex = -1;
+          for (let i = 0; i < contours.size(); ++i) {
+            let area = cv.contourArea(contours.get(i));
+            if (area > maxArea) {
+              maxArea = area;
+              maxIndex = i;
+            }
+          }
+
+          if (maxIndex === -1) throw new Error("표 찾기 실패");
+          let tableRect = cv.boundingRect(contours.get(maxIndex));
+          let colW = tableRect.width / 18;
+          let rowH = tableRect.height / 11;
+
+          let correctCount = 0;
+          let studentAnsArray = [];
+
+          for (let q = 0; q < qCount; q++) {
+            let colBlock = Math.floor(q / 10);
+            let rowIdx = (q % 10) + 1;
+
+            let maxPixels = -1;
+            let studentAnswer = 0;
+
+            for (let opt = 1; opt <= 5; opt++) {
+              let colIdx = colBlock * 6 + opt;
+              let cellX = tableRect.x + colIdx * colW;
+              let cellY = tableRect.y + rowIdx * rowH;
+
+              let padX = colW * 0.2;
+              let padY = rowH * 0.2;
+
+              let rect = new cv.Rect(
+                Math.round(cellX + padX),
+                Math.round(cellY + padY),
+                Math.round(colW - 2 * padX),
+                Math.round(rowH - 2 * padY),
+              );
+
+              let cellRoi = thresh.roi(rect);
+              let pixelCount = cv.countNonZero(cellRoi);
+              cellRoi.delete();
+
+              if (pixelCount > maxPixels) {
+                maxPixels = pixelCount;
+                studentAnswer = opt;
+              }
+            }
+
+            studentAnsArray.push(studentAnswer);
+            if (studentAnswer === answerArray[q]) {
+              correctCount++;
+            }
+          }
+
+          result.correctCount = correctCount;
+          result.studentAnswersArray = studentAnsArray;
+        } catch (error) {
+          console.error(error);
+          result.correctCount = 0;
+          result.studentAnswersArray = Array(qCount).fill("오류");
+        } finally {
+          src.delete();
+          gray.delete();
+          thresh.delete();
+          contours.delete();
+          hierarchy.delete();
+        }
+
+        return result;
+      }
+
+      function addResultRow(
+        pageNum,
+        correctCount,
+        qCount,
+        studentAnsArray,
+        answerArray,
+      ) {
+        const tbody = document.querySelector("#resultTable tbody");
+        const row = tbody.insertRow();
+
+        const pageCell = row.insertCell(0);
+        pageCell.innerText = pageNum + "번 페이지";
+        pageCell.style.textAlign = "center";
+
+        const scoreCell = row.insertCell(1);
+        scoreCell.innerHTML =
+          '<span style="font-weight: bold;">' +
+          correctCount +
+          "</span> / " +
+          qCount;
+        scoreCell.style.textAlign = "center";
+
+        for (let i = 0; i < qCount; i++) {
+          const cell = row.insertCell(i + 2);
+          const studentAns = studentAnsArray[i];
+          const isCorrect = studentAns === answerArray[i];
+
+          cell.innerText = studentAns;
+          cell.style.textAlign = "center";
+          cell.style.fontWeight = "bold";
+
+          if (isCorrect) {
+            cell.style.color = "#2c3e50";
+            cell.style.backgroundColor = "#f2f4f4";
+          } else {
+            cell.style.color = "#e74c3c";
+            cell.style.backgroundColor = "#ffffff";
+          }
+        }
+      }
+
+      document.getElementById("downloadBtn").addEventListener("click", () => {
+        const table = document.getElementById("resultTable");
+        if (table.rows.length <= 1)
+          return alert("다운로드할 데이터가 없습니다.");
+
+        // 브라우저 파싱 오류를 완벽하게 차단하기 위해 문자열을 안전하게 분리 결합
+        let htmlContent =
+          "<" +
+          'html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"' +
+          ">";
+        htmlContent +=
+          "<" +
+          "head" +
+          "><" +
+          'meta charset="utf-8"' +
+          "><" +
+          "style" +
+          ">table { border-collapse: collapse; } th, td { border: 1px solid #dddddd; padding: 5px; }<" +
+          "/style" +
+          "><" +
+          "/head" +
+          ">";
+        htmlContent +=
+          "<" +
+          "body" +
+          ">" +
+          table.outerHTML +
+          "<" +
+          "/body" +
+          "><" +
+          "/html" +
+          ">";
+
+        const blob = new Blob([htmlContent], {
+          type: "application/vnd.ms-excel",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "상세분석결과.xls";
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      });
+    </script>
+  </body>
+</html>
