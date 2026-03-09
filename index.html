@@ -442,40 +442,36 @@
             let colBlock = Math.floor(q / BLOCK_SIZE); // 0 또는 1
             let rowIdx = (q % BLOCK_SIZE) + 2; // 2~21 (0번=메인헤더, 1번=서브헤더)
 
-            let pixelCounts = new Array(5).fill(0);
-
-            for (let opt = 1; opt <= 5; opt++) {
-              let colIdx = colBlock * 6 + opt;
-              let cellX = tableRect.x + colIdx * colW;
-              let cellY = tableRect.y + rowIdx * rowH;
-
-              let padX = colW * 0.05;
-              let padY = rowH * 0.15;
-
-              let x = Math.round(cellX + padX);
-              let y = Math.round(cellY + padY);
-              let w = Math.max(1, Math.round(colW - 2 * padX));
-              let h = Math.max(1, Math.round(rowH - 2 * padY));
-
-              x = Math.max(0, Math.min(x, gray.cols - 2));
-              y = Math.max(0, Math.min(y, gray.rows - 2));
-              w = Math.min(w, gray.cols - x);
-              h = Math.min(h, gray.rows - y);
-
-              let rect = new cv.Rect(x, y, w, h);
-              let cellRoi = gray.roi(rect);
-              pixelCounts[opt - 1] = Math.round(255 - cv.mean(cellRoi)[0]);
-              cellRoi.delete();
+            // 교차 검증: 두 방식의 결과가 일치해야 확정
+            function measureCell(padXRatio) {
+              let counts = new Array(5).fill(0);
+              for (let opt = 1; opt <= 5; opt++) {
+                let colIdx = colBlock * 6 + opt;
+                let cellX = tableRect.x + colIdx * colW;
+                let cellY = tableRect.y + rowIdx * rowH;
+                let padX = colW * padXRatio;
+                let padY = rowH * 0.15;
+                let x = Math.max(0, Math.min(Math.round(cellX + padX), gray.cols - 2));
+                let y = Math.max(0, Math.min(Math.round(cellY + padY), gray.rows - 2));
+                let w = Math.min(Math.max(1, Math.round(colW - 2 * padX)), gray.cols - x);
+                let h = Math.min(Math.max(1, Math.round(rowH - 2 * padY)), gray.rows - y);
+                let roi = gray.roi(new cv.Rect(x, y, w, h));
+                counts[opt - 1] = Math.round(255 - cv.mean(roi)[0]);
+                roi.delete();
+              }
+              return counts;
             }
 
-            let maxPixels = Math.max(...pixelCounts);
-            let maxIdx = pixelCounts.indexOf(maxPixels);
-            let minThreshold = 10;
+            const countsA = measureCell(0.05); // 넓게: 경계 마킹 포착
+            const countsB = measureCell(0.20); // 좁게: 셀 중심만
 
-            let studentAnswer = 0;
-            if (maxPixels >= minThreshold) {
-              studentAnswer = maxIdx + 1;
-            }
+            const maxA = Math.max(...countsA);
+            const maxB = Math.max(...countsB);
+            const ansA = maxA >= 10 ? countsA.indexOf(maxA) + 1 : 0;
+            const ansB = maxB >= 10 ? countsB.indexOf(maxB) + 1 : 0;
+
+            // 두 방식 일치 → 확정, 불일치 → 불확실(0)
+            let studentAnswer = (ansA === ansB) ? ansA : 0;
 
             studentAnsArray.push(studentAnswer);
             if (studentAnswer === answerArray[q]) {
