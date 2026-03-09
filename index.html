@@ -149,7 +149,7 @@
             margin-bottom: 10px;
           "
         >
-          * 학생들에게 나누어 줄 전용 답안지(최대 30문항)를 다운로드하여
+          * 학생들에게 나누어 줄 전용 답안지(최대 40문항)를 다운로드하여
           인쇄하세요.
         </p>
         <p
@@ -193,13 +193,13 @@
       <br />
 
       <div class="input-group">
-        <label for="questionCount">1. 총 문항 수 (최대 30문항)</label>
+        <label for="questionCount">1. 총 문항 수 (최대 40문항)</label>
         <input
           type="number"
           id="questionCount"
           placeholder="예: 25"
           value="25"
-          max="30"
+          max="40"
         />
       </div>
 
@@ -250,11 +250,19 @@
         </button>
       </div>
 
-      <div class="table-container">
+      <div style="display:flex; align-items:flex-start; gap:20px;">
+      <div class="table-container" style="flex:1; overflow-x:auto;">
         <table id="resultTable">
           <thead></thead>
           <tbody></tbody>
         </table>
+      </div>
+      <div style="min-width:160px; padding:14px 16px; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; font-size:14px; line-height:2; white-space:nowrap; align-self:flex-start; margin-top:2px;">
+        <div style="font-weight:bold; margin-bottom:6px;">색상 의미</div>
+        <div><span style="color:#2c3e50; font-weight:bold;">■ 검은색</span> &nbsp;정답</div>
+        <div><span style="color:#e74c3c; font-weight:bold;">■ 빨간색</span> &nbsp;오답</div>
+        <div><span style="color:#2980b9; font-weight:bold;">■ 파란색</span> &nbsp;인식 불확실<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(미기재 또는<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;흐린 마킹)</div>
+      </div>
       </div>
     </div>
 
@@ -291,8 +299,8 @@
           if (fileInput.files.length === 0)
             return alert("스캔한 PDF 파일을 업로드해주세요.");
           if (!answerString) return alert("정답을 입력해주세요.");
-          if (qCount > 30)
-            return alert("현재 양식은 최대 30문항까지만 지원합니다.");
+          if (qCount > 40)
+            return alert("현재 양식은 최대 40문항까지만 지원합니다.");
           if (answerString.length !== qCount)
             return alert(
               `문항 수(${qCount}개)와 정답의 개수(${answerString.length}개)가 다릅니다.`,
@@ -378,7 +386,7 @@
             255,
             cv.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv.THRESH_BINARY_INV,
-            15,
+            21,
             5,
           );
           cv.findContours(
@@ -389,54 +397,84 @@
             cv.CHAIN_APPROX_SIMPLE,
           );
 
-          let maxArea = 0;
-          let maxIndex = -1;
+          // 답안 영역 후보를 찾아 가장 적합한 직사각형 contour 선택
+          // (단순히 가장 큰 것이 아닌, 페이지 여백/테두리 제외)
+          let candidates = [];
           for (let i = 0; i < contours.size(); ++i) {
             let area = cv.contourArea(contours.get(i));
-            if (area > maxArea) {
-              maxArea = area;
-              maxIndex = i;
+            if (area < 1000) continue; // 너무 작은 건 무시
+            let rect = cv.boundingRect(contours.get(i));
+            let fillRatio = area / (rect.width * rect.height);
+            // 직사각형에 가깝고 (fill ratio > 0.5), 일정 크기 이상인 것만
+            if (fillRatio > 0.5) {
+              candidates.push({ index: i, area: area, rect: rect });
             }
           }
+          candidates.sort((a, b) => b.area - a.area);
+          if (candidates.length === 0) throw new Error("표 찾기 실패");
 
-          if (maxIndex === -1) throw new Error("표 찾기 실패");
-          let tableRect = cv.boundingRect(contours.get(maxIndex));
-          let colW = tableRect.width / 18;
-          let rowH = tableRect.height / 11;
+          // 가장 큰 후보 사용 (페이지 전체 테두리보다 작은 경우 다음 후보 시도)
+          let tableRect = candidates[0].rect;
+          // 이미지 전체 크기의 95% 이상이면 페이지 테두리로 간주, 다음 후보 선택
+          let imgArea = thresh.rows * thresh.cols;
+          if (
+            tableRect.width * tableRect.height > imgArea * 0.9 &&
+            candidates.length > 1
+          ) {
+            tableRect = candidates[1].rect;
+          }
+
+          // ── 세로형(portrait) 그리드 ──────────────────────────────
+          // 블록당 20문항, 2블록 가로 배치 (좌:1~20번, 우:21~40번)
+          // 열: 2블록 × 6열(번호1 + 선택지5) = 총 12열
+          // 행: 헤더 2행(메인헤더+서브헤더) + 문항 20행 = 총 22행
+          const BLOCK_SIZE = 20;
+          const TOTAL_COLS = 12; // 2 × 6
+          const TOTAL_ROWS = BLOCK_SIZE + 2; // 22
+
+          let colW = tableRect.width / TOTAL_COLS;
+          let rowH = tableRect.height / TOTAL_ROWS;
 
           let correctCount = 0;
           let studentAnsArray = [];
 
           for (let q = 0; q < qCount; q++) {
-            let colBlock = Math.floor(q / 10);
-            let rowIdx = (q % 10) + 1;
+            let colBlock = Math.floor(q / BLOCK_SIZE); // 0 또는 1
+            let rowIdx = (q % BLOCK_SIZE) + 2; // 2~21 (0번=메인헤더, 1번=서브헤더)
 
-            let maxPixels = -1;
-            let studentAnswer = 0;
+            let pixelCounts = new Array(5).fill(0);
 
             for (let opt = 1; opt <= 5; opt++) {
               let colIdx = colBlock * 6 + opt;
               let cellX = tableRect.x + colIdx * colW;
               let cellY = tableRect.y + rowIdx * rowH;
 
-              let padX = colW * 0.2;
-              let padY = rowH * 0.2;
+              let padX = colW * 0.05;
+              let padY = rowH * 0.15;
 
-              let rect = new cv.Rect(
-                Math.round(cellX + padX),
-                Math.round(cellY + padY),
-                Math.round(colW - 2 * padX),
-                Math.round(rowH - 2 * padY),
-              );
+              let x = Math.round(cellX + padX);
+              let y = Math.round(cellY + padY);
+              let w = Math.max(1, Math.round(colW - 2 * padX));
+              let h = Math.max(1, Math.round(rowH - 2 * padY));
 
-              let cellRoi = thresh.roi(rect);
-              let pixelCount = cv.countNonZero(cellRoi);
+              x = Math.max(0, Math.min(x, gray.cols - 2));
+              y = Math.max(0, Math.min(y, gray.rows - 2));
+              w = Math.min(w, gray.cols - x);
+              h = Math.min(h, gray.rows - y);
+
+              let rect = new cv.Rect(x, y, w, h);
+              let cellRoi = gray.roi(rect);
+              pixelCounts[opt - 1] = Math.round(255 - cv.mean(cellRoi)[0]);
               cellRoi.delete();
+            }
 
-              if (pixelCount > maxPixels) {
-                maxPixels = pixelCount;
-                studentAnswer = opt;
-              }
+            let maxPixels = Math.max(...pixelCounts);
+            let maxIdx = pixelCounts.indexOf(maxPixels);
+            let minThreshold = 10;
+
+            let studentAnswer = 0;
+            if (maxPixels >= minThreshold) {
+              studentAnswer = maxIdx + 1;
             }
 
             studentAnsArray.push(studentAnswer);
@@ -493,7 +531,10 @@
           cell.style.textAlign = "center";
           cell.style.fontWeight = "bold";
 
-          if (isCorrect) {
+          if (studentAns === 0) {
+            cell.style.color = "#2980b9";
+            cell.style.backgroundColor = "#eaf4fb";
+          } else if (isCorrect) {
             cell.style.color = "#2c3e50";
             cell.style.backgroundColor = "#f2f4f4";
           } else {
