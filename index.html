@@ -3,15 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>진단평가/단원평가 자동 채점기</title>
+    <title>답지 생성기</title>
     <style>
-      body {
-        font-family: "Pretendard", sans-serif;
-        max-width: 1000px;
-        margin: 0 auto;
-        padding: 20px;
-        background-color: #f8f9fa;
+      * {
+        box-sizing: border-box;
       }
+
+      body {
+        font-family: "Pretendard", "맑은 고딕", sans-serif;
+        background: #f8f9fa;
+        margin: 0;
+        padding: 20px;
+      }
+
+      /* ── 화면 전용 영역 ─────────────────────────── */
+      .screen-only {
+        max-width: 620px;
+        margin: 0 auto 24px;
+      }
+
       .card {
         background: white;
         padding: 25px;
@@ -19,571 +29,685 @@
         box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         margin-bottom: 20px;
       }
+
       h1 {
         color: #2c3e50;
         text-align: center;
-        margin-bottom: 5px;
+        margin-top: 0;
+        margin-bottom: 4px;
       }
-      h2 {
+
+      .subtitle {
         color: #7f8c8d;
         text-align: center;
-        font-size: 16px;
+        font-size: 13px;
         margin-top: 0;
-        margin-bottom: 20px;
-        font-weight: normal;
+        margin-bottom: 22px;
       }
+
       .input-group {
         margin-bottom: 20px;
       }
+
       label {
         display: block;
         font-weight: bold;
         margin-bottom: 8px;
         color: #495057;
       }
+
       input[type="number"],
       input[type="text"] {
         width: 100%;
         padding: 12px;
         border: 1px solid #ced4da;
         border-radius: 5px;
-        box-sizing: border-box;
         font-size: 16px;
       }
-      input[type="file"] {
-        display: block;
-        margin-top: 5px;
-        width: 100%;
-        padding: 10px;
-        background: #e9ecef;
-        border-radius: 5px;
-        box-sizing: border-box;
-        cursor: pointer;
+
+      /* 선택지 버튼 그룹 */
+      .choice-group {
+        display: flex;
+        gap: 8px;
       }
-      button {
+
+      .choice-btn {
+        flex: 1;
+        padding: 11px 6px;
+        border: 2px solid #ced4da;
+        border-radius: 7px;
+        background: white;
+        color: #555;
+        font-size: 15px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.15s;
+      }
+
+      .choice-btn:hover {
+        border-color: #4caf50;
+        color: #4caf50;
+      }
+
+      .choice-btn.active {
+        border-color: #4caf50;
+        background: #4caf50;
+        color: white;
+      }
+
+      .btn-generate {
         background-color: #4caf50;
         color: white;
         border: none;
-        padding: 15px 20px;
-        border-radius: 5px;
+        padding: 14px 20px;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 18px;
         font-weight: bold;
         width: 100%;
-        margin-top: 10px;
-        transition: background-color 0.3s;
-      }
-      button:hover {
-        background-color: #45a049;
-      }
-      button:disabled {
-        background-color: #cccccc;
-        cursor: not-allowed;
-      }
-      #status {
-        text-align: center;
-        margin-top: 15px;
-        font-weight: bold;
-        color: #e67e22;
-        padding: 10px;
-        border-radius: 5px;
-        background-color: #fdf2e9;
+        transition: background-color 0.2s;
+        margin-top: 4px;
       }
 
-      .table-container {
-        overflow-x: auto;
-        margin-top: 20px;
-        border-radius: 5px;
-        box-shadow: 0 0 5px rgba(0, 0, 0, 0.05);
+      .btn-generate:hover {
+        background-color: #43a047;
       }
-      table {
+
+      .error-msg {
+        color: #e74c3c;
+        font-size: 13px;
+        margin-top: 7px;
+        display: none;
+      }
+
+      .tip-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 15px;
+        font-size: 14px;
+        color: #555;
+      }
+
+      .tip-box ol {
+        margin: 8px 0 0;
+        padding-left: 20px;
+        line-height: 2;
+      }
+
+      /* 생성 완료 액션 박스 */
+      #resultActions {
+        display: none;
+      }
+
+      .result-info {
+        background: #e8f5e9;
+        border: 1px solid #a5d6a7;
+        border-radius: 8px;
+        padding: 14px 18px;
+        font-size: 14px;
+        color: #2e7d32;
+        margin-bottom: 14px;
+        text-align: center;
+      }
+
+      .print-btns {
+        display: flex;
+        gap: 12px;
+      }
+
+      .btn-print-blank {
+        flex: 1;
+        background: #546e7a;
+        color: white;
+        border: none;
+        padding: 13px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        transition: background-color 0.2s;
+      }
+
+      .btn-print-blank:hover {
+        background: #455a64;
+      }
+
+      .btn-print-key {
+        flex: 1;
+        background: #1976d2;
+        color: white;
+        border: none;
+        padding: 13px 10px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 15px;
+        font-weight: bold;
+        transition: background-color 0.2s;
+      }
+
+      .btn-print-key:hover {
+        background: #1565c0;
+      }
+
+      /* ── A4 미리보기 레이블 ─────────────────────── */
+      .preview-label {
+        max-width: 210mm;
+        margin: 28px auto 8px;
+        font-size: 13px;
+        font-weight: bold;
+        color: #555;
+        padding-left: 4px;
+      }
+
+      /* ── A4 용지 시뮬레이션 ─────────────────────── */
+      .sheet-page {
+        width: 210mm;
+        min-height: 297mm;
+        background: white;
+        margin: 0 auto;
+        padding: 10mm 10mm 8mm;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* 상단 헤더 */
+      .sheet-header {
+        border: 1.5px solid #333;
+        margin-bottom: 3mm;
+      }
+
+      .sheet-title-row {
+        text-align: center;
+        font-size: 13.5pt;
+        font-weight: bold;
+        padding: 2mm 0;
+        border-bottom: 1px solid #333;
+      }
+
+      .sheet-info-row {
+        display: flex;
+        font-size: 9pt;
+      }
+
+      .sheet-info-cell {
+        flex: 1;
+        padding: 1.8mm 3mm;
+        border-right: 1px solid #333;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+
+      .sheet-info-cell:last-child {
+        border-right: none;
+      }
+
+      .info-line {
+        border-bottom: 1px solid #555;
+        flex: 1;
+        min-width: 20mm;
+        display: inline-block;
+      }
+
+      /* 두 블록 가로 배치 */
+      .answer-grid-container {
+        display: flex;
+        gap: 4mm;
+        flex: 1;
+      }
+
+      .answer-block {
+        flex: 1;
+        overflow: hidden;
+      }
+
+      /* 공통 테이블 */
+      .answer-table {
         width: 100%;
         border-collapse: collapse;
-        white-space: nowrap;
+        table-layout: fixed;
+        height: 100%;
       }
-      th,
-      td {
-        border: 1px solid #ddd;
-        padding: 10px 8px;
+
+      .answer-table th,
+      .answer-table td {
+        border: 1px solid #888;
+        padding: 0;
         text-align: center;
-        font-size: 15px;
+        vertical-align: middle;
       }
-      th {
-        background-color: #f8f9fa;
-        color: #495057;
-        position: sticky;
-        top: 0;
+
+      .answer-table .row-header th {
+        background-color: #d8d8d8;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+        font-size: 8.5pt;
+        font-weight: bold;
+        height: 8mm;
+      }
+
+      .answer-table .col-num {
+        width: 13mm;
+        font-size: 8.5pt;
+        font-weight: bold;
+        color: #222;
+        background-color: #f0f0f0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .answer-table .cell-choice {
+        height: 12mm;
+        font-size: 9.5pt;
+      }
+
+      /* ── 답안지 (학생용) 셀 스타일 ─────────────── */
+      .cell-blank {
+        background-color: #ffffff;
+        color: #222;
+        font-size: 10pt;
+      }
+
+      .cell-blank-inactive {
+        background-color: #cccccc;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      /* ── 정답 확인 카드 (OHP) 셀 스타일 ────────── */
+      .cell-correct {
+        background-color: #ffffff;
+      }
+
+      .cell-wrong {
+        background-color: #4a4a4a;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .cell-inactive {
+        background-color: #bbbbbb;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .col-num-inactive {
+        background-color: #c8c8c8 !important;
+        color: #888 !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .sheet-footer {
+        margin-top: 3mm;
+        font-size: 7.5pt;
+        color: #666;
+        text-align: center;
+        border-top: 1px solid #bbb;
+        padding-top: 2mm;
+      }
+
+      /* ── 미리보기 영역 (화면) ──────────────────── */
+      .preview-section {
+        display: none;
+        margin-bottom: 30px;
+      }
+
+      /* ── 인쇄 스타일 ─────────────────────────────
+         배경색 인쇄 핵심 설정: print-color-adjust: exact
+      ────────────────────────────────────────────── */
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 0;
+        }
+
+        /* 배경색 강제 인쇄 */
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
+        body {
+          background: white;
+          padding: 0;
+          margin: 0;
+        }
+
+        /* 기본적으로 화면 요소 모두 숨김 */
+        .screen-only,
+        .preview-label,
+        .preview-section,
+        #resultActions {
+          display: none !important;
+        }
+
+        /* data-print 값에 따라 해당 페이지만 표시 */
+        body[data-print="blank"] #blankPreview {
+          display: block !important;
+        }
+
+        body[data-print="key"] #keyPreview {
+          display: block !important;
+        }
+
+        .sheet-page {
+          width: 210mm;
+          min-height: 297mm;
+          margin: 0;
+          padding: 10mm 10mm 8mm;
+          box-shadow: none;
+        }
       }
     </style>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script
-      async
-      src="https://docs.opencv.org/4.8.0/opencv.js"
-      onload="onOpenCvReady()"
-    ></script>
   </head>
   <body>
-    <div class="card">
-      <h1>📝 진단평가/단원평가 자동 채점기</h1>
-      <h2>
-        by. 기록이 성장이 되는 공간, 첵스쿨
-        <a href="https://checks-cho-ok.web.app/" target="_blank"
-          >https://checks-cho-ok.web.app/</a
-        >
-      </h2>
-
-      <div id="status">
-        ⏳ 시스템을 불러오는 중입니다. 잠시만 기다려주세요...
-      </div>
-      <br />
-      <div class="download-box">
-        <label style="color: #1f1f1f; margin-bottom: 10px"
-          >0. 전용 답지(OMR카드) 양식파일</label
-        >
-        <p
-          style="
-            font-size: 14px;
-            color: #555;
-            margin-top: 0;
-            margin-bottom: 10px;
-          "
-        >
-          * 학생들에게 나누어 줄 전용 답안지(최대 40문항)를 다운로드하여
-          인쇄하세요.
+    <!-- ─── 입력 폼 (화면 전용) ──────────────────── -->
+    <div class="screen-only">
+      <div class="card">
+        <h1>📋 답지 생성기</h1>
+        <p class="subtitle">
+          by. 기록이 성장이 되는 공간, 첵스쿨 &nbsp;|&nbsp;
+          <a href="https://checks-cho-ok.web.app/" target="_blank"
+            >https://checks-cho-ok.web.app/</a
+          >
         </p>
-        <p
-          style="
-            font-size: 14px;
-            color: #555;
-            margin-top: 0;
-            margin-bottom: 10px;
-          "
-        >
-          * 답안지 양식을 그대로 다운받고, 문항수에 해당하는 만큼만 답지에
-          표시하여 사용하시면 됩니다. (예: 25문항이면 1~25번만 표시)
-        </p>
-        <p
-          style="
-            font-size: 14px;
-            color: #555;
-            margin-top: 0;
-            margin-bottom: 10px;
-          "
-        >
-          * 한글파일을 다운받아 편집하실 때는 제목, 학년, 반만 수정해주세요!!
-          (문항답안지 위치나 틀을 수정하시면 채점이 제대로 되지 않습니다!!)
-        </p>
-        <a
-          href="omr_template.pdf"
-          download="OMR답안지_양식.pdf"
-          class="download-btn"
-          >📥 답안지 양식 다운로드 (.pdf)</a
-        >
-        &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
-        <a
-          href="omr_template.hwpx"
-          download="OMR답안지_양식.hwpx"
-          class="download-btn"
-          >📥 답안지 양식 다운로드 (.hwpx)</a
-        >
-      </div>
-      <br />
-      <hr />
-      <br />
 
-      <div class="input-group">
-        <label for="questionCount">1. 총 문항 수 (최대 40문항)</label>
-        <input
-          type="number"
-          id="questionCount"
-          placeholder="예: 25"
-          value="25"
-          max="40"
-        />
-      </div>
+        <div class="input-group">
+          <label for="questionCount">1. 총 문항 수 (최대 40문항)</label>
+          <input
+            type="number"
+            id="questionCount"
+            placeholder="예: 25"
+            value="25"
+            min="1"
+            max="40"
+          />
+        </div>
 
-      <div class="input-group">
-        <label for="answerKey">2. 정답 입력 (띄어쓰기 없이 연속된 숫자)</label>
-        <input
-          type="text"
-          id="answerKey"
-          placeholder="예: 3213412341424413214212333"
-        />
-      </div>
+        <div class="input-group">
+          <label>2. 선택지 유형</label>
+          <div class="choice-group">
+            <button class="choice-btn" data-val="3" onclick="selectChoice(3)">
+              3지선다형
+            </button>
+            <button class="choice-btn" data-val="4" onclick="selectChoice(4)">
+              4지선다형
+            </button>
+            <button
+              class="choice-btn active"
+              data-val="5"
+              onclick="selectChoice(5)"
+            >
+              5지선다형
+            </button>
+          </div>
+        </div>
 
-      <div class="input-group">
-        <label for="pdfInput">3. 학생 답안지 PDF 업로드</label>
-        <input type="file" id="pdfInput" accept="application/pdf" disabled />
-      </div>
-      <div class="input-group">
-        <small style="color: #ef1915; font-weight: bold"
-          >* 학생 답안지는 앞번호(1번)가 위로 오도록 모아서, pdf파일 하나로 스캔
-          후 업로드 해주세요!
-        </small>
-      </div>
+        <div class="input-group">
+          <label for="answerKey"
+            >3. 정답 입력 (순서대로 숫자만, 붙여서 입력)</label
+          >
+          <input
+            type="text"
+            id="answerKey"
+            placeholder="예: 3213412341424413214"
+          />
+          <div class="error-msg" id="errorMsg"></div>
+        </div>
 
-      <button id="processBtn" disabled>채점 시작하기</button>
-    </div>
-
-    <div class="card" id="result-display" style="display: none">
-      <div
-        style="
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 10px;
-        "
-      >
-        <h3 style="margin: 0">📊 반 전체 채점 결과</h3>
-        <button
-          id="downloadBtn"
-          style="
-            width: auto;
-            padding: 8px 15px;
-            font-size: 14px;
-            margin: 0;
-            background-color: #3498db;
-          "
-        >
-          색상 유지 엑셀 다운로드
+        <button class="btn-generate" onclick="generateSheet()">
+          📋 답지 생성하기
         </button>
       </div>
 
-      <div style="display:flex; align-items:flex-start; gap:20px;">
-      <div class="table-container" style="flex:1; overflow-x:auto;">
-        <table id="resultTable">
-          <thead></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div style="min-width:160px; padding:14px 16px; background:#f8f9fa; border:1px solid #ddd; border-radius:8px; font-size:14px; line-height:2; white-space:nowrap; align-self:flex-start; margin-top:2px;">
-        <div style="font-weight:bold; margin-bottom:6px;">색상 의미</div>
-        <div><span style="color:#2c3e50; font-weight:bold;">■ 검은색</span> &nbsp;정답</div>
-        <div><span style="color:#e74c3c; font-weight:bold;">■ 빨간색</span> &nbsp;오답</div>
-        <div><span style="color:#2980b9; font-weight:bold;">■ 파란색</span> &nbsp;인식 불확실<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(미기재 또는<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;흐린 마킹)</div>
-      </div>
+      <div class="tip-box">
+        <strong>💡 사용 방법</strong>
+        <ol>
+          <li>문항 수, 선택지 유형, 정답을 입력하고 버튼을 누릅니다.</li>
+          <li>
+            <strong>답안지 양식 인쇄</strong> → 학생에게 배부할 빈 답안지를
+            인쇄합니다.
+          </li>
+          <li>
+            <strong>정답 확인 카드 인쇄</strong> → OHP 필름에 인쇄 후 학생
+            답안지 위에 올려 채점합니다.<br />
+            &nbsp;&nbsp;&nbsp;흰 칸 = 정답 위치, 진한 회색 칸 = 오답 위치
+          </li>
+          <li>
+            인쇄 설정에서 <strong>배율 100%</strong>,
+            <strong>여백 없음</strong>으로 맞춰야 두 용지가 정확히
+            겹칩니다.
+          </li>
+        </ol>
       </div>
     </div>
 
-    <canvas id="hiddenCanvas" style="display: none"></canvas>
+    <!-- ─── 생성 완료 버튼 영역 (화면 전용) ────────── -->
+    <div class="screen-only" id="resultActions">
+      <div class="card">
+        <div class="result-info">
+          ✅ 생성 완료! &nbsp;인쇄 설정에서 <strong>배율 100%</strong>,
+          <strong>여백 없음</strong>으로 설정하세요.
+        </div>
+        <div class="print-btns">
+          <button class="btn-print-blank" onclick="doPrint('blank')">
+            🖨️ 답안지 양식 인쇄
+          </button>
+          <button class="btn-print-key" onclick="doPrint('key')">
+            🖨️ 정답 확인 카드 인쇄 (OHP)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── 미리보기: 학생용 답안지 ─────────────────── -->
+    <div class="preview-label screen-only" id="blankLabel">
+      📄 미리보기 — 답안지 양식 (학생 배부용)
+    </div>
+    <div class="preview-section" id="blankPreview">
+      <div class="sheet-page" id="blankSheetPage"></div>
+    </div>
+
+    <!-- ─── 미리보기: OHP 정답 확인 카드 ──────────── -->
+    <div class="preview-label screen-only" id="keyLabel">
+      🖨️ 미리보기 — 정답 확인 카드 (OHP 인쇄용)
+    </div>
+    <div class="preview-section" id="keyPreview">
+      <div class="sheet-page" id="keySheetPage"></div>
+    </div>
 
     <script>
-      pdfjsLib.GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
-      let isReady = false;
+      let choiceCount = 5;
 
-      function onOpenCvReady() {
-        const statusEl = document.getElementById("status");
-        statusEl.innerText = "✅ 채점 엔진 준비 완료!";
-        statusEl.style.backgroundColor = "#e8f8f5";
-        statusEl.style.color = "#27ae60";
-        document.getElementById("pdfInput").disabled = false;
-        document.getElementById("processBtn").disabled = false;
-        isReady = true;
-      }
+      const CIRCLE = ["", "①", "②", "③", "④", "⑤"];
 
-      document
-        .getElementById("processBtn")
-        .addEventListener("click", async () => {
-          if (!isReady) return alert("아직 시스템이 준비되지 않았습니다.");
-
-          const fileInput = document.getElementById("pdfInput");
-          const answerString = document
-            .getElementById("answerKey")
-            .value.trim();
-          const qCount = parseInt(
-            document.getElementById("questionCount").value,
-          );
-
-          if (fileInput.files.length === 0)
-            return alert("스캔한 PDF 파일을 업로드해주세요.");
-          if (!answerString) return alert("정답을 입력해주세요.");
-          if (qCount > 40)
-            return alert("현재 양식은 최대 40문항까지만 지원합니다.");
-          if (answerString.length !== qCount)
-            return alert(
-              `문항 수(${qCount}개)와 정답의 개수(${answerString.length}개)가 다릅니다.`,
-            );
-
-          const answerArray = answerString.split("").map(Number);
-
-          const statusEl = document.getElementById("status");
-          statusEl.innerText = "⏳ 답안지를 정밀 분석하며 채점하고 있습니다...";
-          statusEl.style.backgroundColor = "#fef9e7";
-          statusEl.style.color = "#f39c12";
-
-          document.getElementById("result-display").style.display = "block";
-
-          generateTableHeader(qCount);
-          document.querySelector("#resultTable tbody").innerHTML = "";
-
-          const file = fileInput.files[0];
-          const fileReader = new FileReader();
-
-          fileReader.onload = async function () {
-            const typedarray = new Uint8Array(this.result);
-            const pdf = await pdfjsLib.getDocument(typedarray).promise;
-            const totalPages = pdf.numPages;
-
-            for (let pageNum = 1; pageNum <= totalPages; pageNum++) {
-              const page = await pdf.getPage(pageNum);
-              const viewport = page.getViewport({ scale: 2.0 });
-
-              const canvas = document.getElementById("hiddenCanvas");
-              const ctx = canvas.getContext("2d");
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-
-              const renderContext = { canvasContext: ctx, viewport: viewport };
-              await page.render(renderContext).promise;
-
-              const result = gradeFixedFormatOMR(canvas, answerArray, qCount);
-              addResultRow(
-                pageNum,
-                result.correctCount,
-                qCount,
-                result.studentAnswersArray,
-                answerArray,
-              );
-            }
-
-            statusEl.innerText = "✅ 반 전체 채점이 성공적으로 완료되었습니다!";
-            statusEl.style.backgroundColor = "#e8f8f5";
-            statusEl.style.color = "#27ae60";
-          };
-          fileReader.readAsArrayBuffer(file);
+      function selectChoice(n) {
+        choiceCount = n;
+        document.querySelectorAll(".choice-btn").forEach((btn) => {
+          btn.classList.toggle("active", parseInt(btn.dataset.val) === n);
         });
-
-      function generateTableHeader(qCount) {
-        const thead = document.querySelector("#resultTable thead");
-        let headerHTML = "<tr>";
-        headerHTML += '<th style="background-color:#f8f9fa;">학생(페이지)</th>';
-        headerHTML +=
-          '<th style="background-color:#f8f9fa;">결과 (맞은개수/문항수)</th>';
-        for (let i = 1; i <= qCount; i++) {
-          headerHTML +=
-            '<th style="background-color:#f8f9fa;">' + i + "번</th>";
-        }
-        headerHTML += "</tr>";
-        thead.innerHTML = headerHTML;
       }
 
-      function gradeFixedFormatOMR(canvas, answerArray, qCount) {
-        let src = cv.imread(canvas);
-        let gray = new cv.Mat();
-        let thresh = new cv.Mat();
-        let contours = new cv.MatVector();
-        let hierarchy = new cv.Mat();
-
-        let result = { correctCount: 0, studentAnswersArray: [] };
-
-        try {
-          cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY, 0);
-          cv.adaptiveThreshold(
-            gray,
-            thresh,
-            255,
-            cv.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv.THRESH_BINARY_INV,
-            21,
-            5,
-          );
-          cv.findContours(
-            thresh,
-            contours,
-            hierarchy,
-            cv.RETR_EXTERNAL,
-            cv.CHAIN_APPROX_SIMPLE,
-          );
-
-          // 답안 영역 후보를 찾아 가장 적합한 직사각형 contour 선택
-          // (단순히 가장 큰 것이 아닌, 페이지 여백/테두리 제외)
-          let candidates = [];
-          for (let i = 0; i < contours.size(); ++i) {
-            let area = cv.contourArea(contours.get(i));
-            if (area < 1000) continue; // 너무 작은 건 무시
-            let rect = cv.boundingRect(contours.get(i));
-            let fillRatio = area / (rect.width * rect.height);
-            // 직사각형에 가깝고 (fill ratio > 0.5), 일정 크기 이상인 것만
-            if (fillRatio > 0.5) {
-              candidates.push({ index: i, area: area, rect: rect });
-            }
-          }
-          candidates.sort((a, b) => b.area - a.area);
-          if (candidates.length === 0) throw new Error("표 찾기 실패");
-
-          // 가장 큰 후보 사용 (페이지 전체 테두리보다 작은 경우 다음 후보 시도)
-          let tableRect = candidates[0].rect;
-          // 이미지 전체 크기의 95% 이상이면 페이지 테두리로 간주, 다음 후보 선택
-          let imgArea = thresh.rows * thresh.cols;
-          if (
-            tableRect.width * tableRect.height > imgArea * 0.9 &&
-            candidates.length > 1
-          ) {
-            tableRect = candidates[1].rect;
-          }
-
-          // ── 세로형(portrait) 그리드 ──────────────────────────────
-          // 블록당 20문항, 2블록 가로 배치 (좌:1~20번, 우:21~40번)
-          // 열: 2블록 × 6열(번호1 + 선택지5) = 총 12열
-          // 행: 헤더 2행(메인헤더+서브헤더) + 문항 20행 = 총 22행
-          const BLOCK_SIZE = 20;
-          const TOTAL_COLS = 12; // 2 × 6
-          const TOTAL_ROWS = BLOCK_SIZE + 2; // 22
-
-          let colW = tableRect.width / TOTAL_COLS;
-          let rowH = tableRect.height / TOTAL_ROWS;
-
-          let correctCount = 0;
-          let studentAnsArray = [];
-
-          for (let q = 0; q < qCount; q++) {
-            let colBlock = Math.floor(q / BLOCK_SIZE); // 0 또는 1
-            let rowIdx = (q % BLOCK_SIZE) + 2; // 2~21 (0번=메인헤더, 1번=서브헤더)
-
-            // 교차 검증: 두 방식의 결과가 일치해야 확정
-            function measureCell(padXRatio) {
-              let counts = new Array(5).fill(0);
-              for (let opt = 1; opt <= 5; opt++) {
-                let colIdx = colBlock * 6 + opt;
-                let cellX = tableRect.x + colIdx * colW;
-                let cellY = tableRect.y + rowIdx * rowH;
-                let padX = colW * padXRatio;
-                let padY = rowH * 0.15;
-                let x = Math.max(0, Math.min(Math.round(cellX + padX), gray.cols - 2));
-                let y = Math.max(0, Math.min(Math.round(cellY + padY), gray.rows - 2));
-                let w = Math.min(Math.max(1, Math.round(colW - 2 * padX)), gray.cols - x);
-                let h = Math.min(Math.max(1, Math.round(rowH - 2 * padY)), gray.rows - y);
-                let roi = gray.roi(new cv.Rect(x, y, w, h));
-                counts[opt - 1] = Math.round(255 - cv.mean(roi)[0]);
-                roi.delete();
-              }
-              return counts;
-            }
-
-            const countsA = measureCell(0.05); // 넓게: 경계 마킹 포착
-            const countsB = measureCell(0.20); // 좁게: 셀 중심만
-
-            const maxA = Math.max(...countsA);
-            const maxB = Math.max(...countsB);
-            const ansA = maxA >= 10 ? countsA.indexOf(maxA) + 1 : 0;
-            const ansB = maxB >= 10 ? countsB.indexOf(maxB) + 1 : 0;
-
-            // 두 방식 일치 → 확정, 불일치 → 불확실(0)
-            let studentAnswer = (ansA === ansB) ? ansA : 0;
-
-            studentAnsArray.push(studentAnswer);
-            if (studentAnswer === answerArray[q]) {
-              correctCount++;
-            }
-          }
-
-          result.correctCount = correctCount;
-          result.studentAnswersArray = studentAnsArray;
-        } catch (error) {
-          console.error(error);
-          result.correctCount = 0;
-          result.studentAnswersArray = Array(qCount).fill("오류");
-        } finally {
-          src.delete();
-          gray.delete();
-          thresh.delete();
-          contours.delete();
-          hierarchy.delete();
-        }
-
-        return result;
+      function showError(msg) {
+        const el = document.getElementById("errorMsg");
+        el.textContent = msg;
+        el.style.display = "block";
       }
 
-      function addResultRow(
-        pageNum,
-        correctCount,
-        qCount,
-        studentAnsArray,
-        answerArray,
-      ) {
-        const tbody = document.querySelector("#resultTable tbody");
-        const row = tbody.insertRow();
+      function generateSheet() {
+        const errorEl = document.getElementById("errorMsg");
+        errorEl.style.display = "none";
 
-        const pageCell = row.insertCell(0);
-        pageCell.innerText = pageNum + "번 페이지";
-        pageCell.style.textAlign = "center";
+        const qCount = parseInt(
+          document.getElementById("questionCount").value,
+        );
+        const answerStr = document.getElementById("answerKey").value.trim();
 
-        const scoreCell = row.insertCell(1);
-        scoreCell.innerHTML =
-          '<span style="font-weight: bold;">' +
-          correctCount +
-          "</span> / " +
-          qCount;
-        scoreCell.style.textAlign = "center";
+        if (!qCount || qCount < 1 || qCount > 40) {
+          showError("문항 수는 1~40 사이로 입력해주세요.");
+          return;
+        }
+        if (!answerStr) {
+          showError("정답을 입력해주세요.");
+          return;
+        }
 
-        for (let i = 0; i < qCount; i++) {
-          const cell = row.insertCell(i + 2);
-          const studentAns = studentAnsArray[i];
-          const isCorrect = studentAns === answerArray[i];
+        const validPattern = new RegExp(`^[1-${choiceCount}]+$`);
+        if (!validPattern.test(answerStr)) {
+          showError(`정답은 1~${choiceCount} 사이의 숫자만 입력해주세요.`);
+          return;
+        }
+        if (answerStr.length !== qCount) {
+          showError(
+            `문항 수(${qCount}개)와 정답 개수(${answerStr.length}개)가 다릅니다.`,
+          );
+          return;
+        }
 
-          cell.innerText = studentAns;
-          cell.style.textAlign = "center";
-          cell.style.fontWeight = "bold";
+        const answers = answerStr.split("").map(Number);
 
-          if (studentAns === 0) {
-            cell.style.color = "#2980b9";
-            cell.style.backgroundColor = "#eaf4fb";
-          } else if (isCorrect) {
-            cell.style.color = "#2c3e50";
-            cell.style.backgroundColor = "#f2f4f4";
+        renderBlankSheet(qCount);
+        renderKeySheet(qCount, answers);
+
+        document.getElementById("resultActions").style.display = "block";
+        document.getElementById("blankLabel").style.display = "block";
+        document.getElementById("keyLabel").style.display = "block";
+        document.getElementById("blankPreview").style.display = "block";
+        document.getElementById("keyPreview").style.display = "block";
+
+        document
+          .getElementById("resultActions")
+          .scrollIntoView({ behavior: "smooth" });
+      }
+
+      /* ─── 학생용 빈 답안지 렌더링 ───────────────── */
+      function renderBlankSheet(qCount) {
+        const page = document.getElementById("blankSheetPage");
+
+        const choiceLabels = CIRCLE.slice(1, choiceCount + 1).join(" ");
+
+        let html = `
+          <div class="sheet-header">
+            <div class="sheet-title-row">답 &nbsp; 안 &nbsp; 지</div>
+            <div class="sheet-info-row">
+              <div class="sheet-info-cell">(&nbsp;&nbsp;&nbsp;&nbsp;)학년&nbsp;(&nbsp;&nbsp;&nbsp;&nbsp;)반</div>
+              <div class="sheet-info-cell">이름 (&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;)</div>
+              <div class="sheet-info-cell" style="justify-content:center; font-size:8pt; color:#555;">
+                총 ${qCount}문항 &nbsp;|&nbsp; ${choiceCount}지선다형
+              </div>
+            </div>
+          </div>
+          <div class="answer-grid-container">
+            ${buildBlankBlock(1, 20, qCount)}
+            ${buildBlankBlock(21, 40, qCount)}
+          </div>
+          <div class="sheet-footer">
+            ※ 답란에 해당 번호를 정확히 표시하세요. &nbsp;|&nbsp; 수정 시 수정테이프를 사용하세요.
+          </div>
+        `;
+        page.innerHTML = html;
+      }
+
+      function buildBlankBlock(startQ, endQ, qCount) {
+        let html = `<div class="answer-block"><table class="answer-table">`;
+
+        // 헤더
+        html += `<tr class="row-header"><th class="col-num">번호</th>`;
+        for (let i = 1; i <= choiceCount; i++) {
+          html += `<th>${CIRCLE[i]}</th>`;
+        }
+        html += `</tr>`;
+
+        for (let q = startQ; q <= endQ; q++) {
+          const isActive = q <= qCount;
+          html += `<tr>`;
+          if (isActive) {
+            html += `<td class="col-num cell-choice">${q}</td>`;
+            for (let i = 1; i <= choiceCount; i++) {
+              html += `<td class="cell-choice cell-blank">${CIRCLE[i]}</td>`;
+            }
           } else {
-            cell.style.color = "#e74c3c";
-            cell.style.backgroundColor = "#ffffff";
+            html += `<td class="col-num cell-choice col-num-inactive">${q}</td>`;
+            for (let i = 1; i <= choiceCount; i++) {
+              html += `<td class="cell-choice cell-blank-inactive"></td>`;
+            }
           }
+          html += `</tr>`;
         }
+
+        html += `</table></div>`;
+        return html;
       }
 
-      document.getElementById("downloadBtn").addEventListener("click", () => {
-        const table = document.getElementById("resultTable");
-        if (table.rows.length <= 1)
-          return alert("다운로드할 데이터가 없습니다.");
+      /* ─── OHP 정답 확인 카드 렌더링 ─────────────── */
+      function renderKeySheet(qCount, answers) {
+        const page = document.getElementById("keySheetPage");
 
-        // 브라우저 파싱 오류를 완벽하게 차단하기 위해 문자열을 안전하게 분리 결합
-        let htmlContent =
-          "<" +
-          'html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"' +
-          ">";
-        htmlContent +=
-          "<" +
-          "head" +
-          "><" +
-          'meta charset="utf-8"' +
-          "><" +
-          "style" +
-          ">table { border-collapse: collapse; } th, td { border: 1px solid #dddddd; padding: 5px; }<" +
-          "/style" +
-          "><" +
-          "/head" +
-          ">";
-        htmlContent +=
-          "<" +
-          "body" +
-          ">" +
-          table.outerHTML +
-          "<" +
-          "/body" +
-          "><" +
-          "/html" +
-          ">";
+        let html = `
+          <div class="sheet-header">
+            <div class="sheet-title-row">정답 확인 카드 &nbsp;(OHP 인쇄용 · 총 ${qCount}문항)</div>
+            <div class="sheet-info-row">
+              <div class="sheet-info-cell">학년&nbsp;<span class="info-line"></span>&nbsp;반</div>
+              <div class="sheet-info-cell">과 목&nbsp;<span class="info-line"></span></div>
+              <div class="sheet-info-cell" style="justify-content:center; font-size:8.5pt;">
+                <span style="display:inline-block; width:12px; height:12px; background:white; border:1px solid #999; margin-right:3px; vertical-align:middle;"></span>흰칸=정답&nbsp;&nbsp;
+                <span style="display:inline-block; width:12px; height:12px; background:#4a4a4a; margin-right:3px; vertical-align:middle; -webkit-print-color-adjust:exact; print-color-adjust:exact;"></span>회색=오답
+              </div>
+            </div>
+          </div>
+          <div class="answer-grid-container">
+            ${buildKeyBlock(1, 20, qCount, answers)}
+            ${buildKeyBlock(21, 40, qCount, answers)}
+          </div>
+          <div class="sheet-footer">
+            ※ OHP 필름에 인쇄 후 학생 답안지 위에 올려 채점하세요. &nbsp;|&nbsp; 인쇄 배율 100%, 여백 없음으로 설정하세요.
+          </div>
+        `;
+        page.innerHTML = html;
+      }
 
-        const blob = new Blob([htmlContent], {
-          type: "application/vnd.ms-excel",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "상세분석결과.xls";
+      function buildKeyBlock(startQ, endQ, qCount, answers) {
+        let html = `<div class="answer-block"><table class="answer-table">`;
 
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        html += `<tr class="row-header"><th class="col-num">번호</th>`;
+        for (let i = 1; i <= choiceCount; i++) {
+          html += `<th>${CIRCLE[i]}</th>`;
+        }
+        html += `</tr>`;
+
+        for (let q = startQ; q <= endQ; q++) {
+          const isActive = q <= qCount;
+          html += `<tr>`;
+          if (isActive) {
+            html += `<td class="col-num cell-choice">${q}</td>`;
+            for (let i = 1; i <= choiceCount; i++) {
+              const cls = i === answers[q - 1] ? "cell-correct" : "cell-wrong";
+              html += `<td class="cell-choice ${cls}"></td>`;
+            }
+          } else {
+            html += `<td class="col-num cell-choice col-num-inactive">${q}</td>`;
+            for (let i = 1; i <= choiceCount; i++) {
+              html += `<td class="cell-choice cell-inactive"></td>`;
+            }
+          }
+          html += `</tr>`;
+        }
+
+        html += `</table></div>`;
+        return html;
+      }
+
+      /* ─── 인쇄 실행 ─────────────────────────────── */
+      function doPrint(mode) {
+        document.body.dataset.print = mode;
+        window.print();
+      }
+
+      window.addEventListener("afterprint", () => {
+        delete document.body.dataset.print;
       });
     </script>
   </body>
